@@ -1,6 +1,7 @@
 # 目录
 
 ## 操作系统
+* [页面置换算法](PageReplacement.md)
 * [死锁](Deadlock.md)
 
 ## 计算机网络
