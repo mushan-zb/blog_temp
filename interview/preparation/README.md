@@ -5,8 +5,8 @@
 * [死锁](Deadlock.md)
 
 ## 计算机网络
-* [UDP和TCP协议](UDP-TCP.md)
-* [HTTP协议](HTTP.md)
+* [UDP 和 TCP 协议](UDP-TCP.md)
+* [HTTP 协议](HTTP.md)
 
 ## Linux 系统
 * [Linux 目录结构和常用命令](Linux-CatalogCommand.md)
@@ -19,4 +19,4 @@
 
 ## python 语言和框架
 * [Django 一次请求响应的过程](Django-ReauestResponse.md)
-* [restful接口规范](restrul.md)
+* [restful 接口规范](restrul.md)
