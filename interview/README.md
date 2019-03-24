@@ -6,3 +6,4 @@
 * [旷视](face++.md)
 * [阿里巴巴-分布式计算](alibaba.md)
 * [腾讯](tencent.md)
+* [字节跳动](ByteDance.md)
