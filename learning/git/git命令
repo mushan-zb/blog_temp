@@ -21,10 +21,10 @@ git仓库管理命令
 
 远程仓库
 	ssh-keygen -t rsa -C "邮箱"	创建一个 ssh 的公私钥 id_rsa 私钥 id_rsa.pub 公钥
-	将公钥加载到GitHub或gitee上
+	将公钥加载到GitHub/gitee/gitlab
 	ssh -T git@github.com	连接GitHub
 	git remote add origin 远程仓库的地址	关联远程仓库
-	git remote rm oringin		删除远程仓库关联
+	git remote rm origin		删除远程仓库关联
 	git pull origin master		获取远程仓库内容
 	git push origin  master		将本地内容上传远程仓库
 	git clone 远程仓库的地址		克隆远程仓库内容
@@ -38,6 +38,20 @@ git仓库管理命令
 	git checkout 分支名	切换分支（-b 创建分支并且换）
 	git merge 分支名	合并分支（在主分支上合并，分支名为要被合并的分支）
 	git push --set-upstream origin 分支名（第一次上传新分支）
+	分支同步
+		本地新分支推送到远程
+			git push origin 分支名
+		远程新分支本地没有
+			git fetch			将更新取回本地
+			git branch -a		查看所有分支（包括远程）
+			git branch			查看本地分支
+			git checkout 分支	 切换分支
+		本地分支删除远程也想删除
+			git branch -d 分支名		删除本地分支
+			git push origin -d 分支名	删除远程分支
+		远程分支已删除本地同步记录
+			git remote show origin		查看远程分支和本地分支的对应关系
+			git remote prune origin		删除本地中远程已删除分支
 
 标签管理
 	git tag 标签名 [id]	（创建标签，不加标签名为查看标签，为指定 id 打标签）
