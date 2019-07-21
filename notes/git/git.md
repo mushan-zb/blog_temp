@@ -30,6 +30,13 @@ git仓库管理命令
 	git clone 远程仓库的地址		克隆远程仓库内容
 	注意：添加文件名：.gitignore	将某些文件名写入该文件，在每次获取或上传远程仓库时，可忽略该文件（避免某些大文件每次上传下载）
 
+git rebase 处理合并冲突
+	git fetch origin          获取远程仓库最新代码
+	git rebase origin/master  合并远程更新的分支
+	git add 已解决的文件名      将解决冲突后的文件添加
+	git rebase --continue     继续检查是否还有冲突（还有冲突重复上一步，没有冲突自动切回原来的分支）
+	git push origin           将分支推送至远程
+
 合并冲突
 	当两个分支或本地和远程仓库合并时，即：git merge 或 git pull 出现冲突时，对于文本文件的冲突仅需进入该文件将不需要保留的部分文件进行删除即可，对于二进制文件，可以使用 git checkout 文件名 --ours/theirs （ours保留本分支或本地仓库文件/theirs保留其他分支或远程仓库文件）进行选择型保留
 
