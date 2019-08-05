@@ -20,4 +20,4 @@
 
 ## python 语言和框架
 * [Django 一次请求响应的过程](Django-ReauestResponse.md)
-* [restful 接口规范](restrul.md)
+* [restful 接口规范](restful.md)

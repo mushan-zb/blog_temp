@@ -3,20 +3,20 @@
 
 ## 目录
 
-### [面试](interview)
+### [面试记录](interview)
 - [校招记录](interview/school_recruitment)
 - [社招记录](interview/social_recruitment)
 
-### [笔记](notes)
-- [计算机基础知识](notes/计算机基础知识)
-- [Git](notes/git)
-- [Python](notes/python)
-- [Golang](notes/golang)
-- [Nginx](notes/nginx)
-- [Redis](notes/redis)
-- [MySQL](notes/mysql)
-- [ElasticSearch](notes/elasticsearch)
-- [其他](notes/其他)
+### [技术总结](technical)
+- [计算机基础知识](technical/计算机基础知识)
+- [Git](technical/git)
+- [Python](technical/python)
+- [Golang](technical/golang)
+- [Nginx](technical/nginx)
+- [Redis](technical/redis)
+- [MySQL](technical/mysql)
+- [ElasticSearch](technical/elasticsearch)
+- [其他](technical/其他)
 
-### [学习](learning)
-- [English](learning/English)
+### [其他爱好](hobby)
+- [English](hobby/English)
