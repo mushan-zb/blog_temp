@@ -12,9 +12,13 @@
 - [组合和方法集](Go语言核心编程.md#combination-and-method-set)
 - [函数类型](Go语言核心编程.md#function-type)
 
-### 第四章 - 接口
+### [第四章 - 接口](Go语言核心编程.md#chapter4)
+- [基本概念](Go语言核心编程.md#basic-concepts)
+- [接口运算](Go语言核心编程.md#interface-operation)
+- [空接口](Go语言核心编程.md#empty-interface)
+- [接口内部实现](Go语言核心编程.md#interface-implementation)
 
-### 第五章 - 并发
+### [第五章 - 并发](Go语言核心编程.md#chapter5)
 
 ### 第六章 - 反射
 
