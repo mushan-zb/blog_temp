@@ -659,13 +659,13 @@ switch v := i.(type) {
 
 **接口优点和使用形式**  
 - 接口优点
-    - 解耦：复杂系统进行垂直和水平的分割是常用的设计手段，在层与层之间使用接口进行抽象和解耦是一种好的编程策略
-    - 实现泛型：使用空接口作为函数或方法参数能够用在需要泛型的场景中
+  - 解耦：复杂系统进行垂直和水平的分割是常用的设计手段，在层与层之间使用接口进行抽象和解耦是一种好的编程策略
+  - 实现泛型：使用空接口作为函数或方法参数能够用在需要泛型的场景中
 - 使用形式
-    - 作为结构内嵌字段
-    - 作为函数或方法的形参
-    - 作为函数或方法的返回值
-    - 作为其他接口定义的嵌入字段
+  - 作为结构内嵌字段
+  - 作为函数或方法的形参
+  - 作为函数或方法的返回值
+  - 作为其他接口定义的嵌入字段
 
 ### <a id="empty-interface>空接口</a>
 **基本概念**
@@ -687,3 +687,268 @@ func Fprint(w io.Writer, a ...interface{}) (n int, err error)
 此处内容暂时略过，书本 P120 - P132
 
 ## <a id="chapter5">并发</a>
+### <a id="concurrent-basic">并发基础</a>
+- 并行：程序在任意时刻都是同时运行的
+    并行是在任一粒度的时间内都具备同时执行的能力：最简单的并行就是多机，多台机器并行处理
+- 并发：程序在单位时间内是同时运行的
+    并发是在规定时间内多个请求都得到处理，实际上可能是分时操作。并发重在避免阻塞，使程序不会因为一个阻塞而停止处理。典型的并发应用：分时操作系统（忽略多核 CPU）
+
+并行具有瞬时性，并发具有过程性；并发在于结构，并行在于执行。应用程序具备好的并发结构，操作系统才能更好地利用硬件并行执行，同时避免阻塞等待，合理地进行调度，提高 CPU 利用率
+
+**goroutine**  
+goroutine 被翻译成 go 例程或 go 协程  
+操作系统可以进行线程和进程的调度，本身具备并发处理能力，但切换代价过于高昂，进程切换需要保存现场，耗费较多的时间。Go 语言的并发是基于用户层在构筑一级调度  
+**注：** go 关键字后面必须跟一个函数，不能是语句或者其他东西，函数的返回值被忽略
+
+goroutine 的特性：
+- go 的执行是非阻塞的，不会等待
+- go 后面的函数的返回值会被忽略
+- 调度器不保证多个 goroutine 的执行次序
+- 没有父子 goroutine 的概念，所有的 goroutine 都是平等地被调度和执行
+- Go 程序在执行时会单独为 main 函数创建一个 goroutine，遇到其他 go 关键字时再去创建其他的 goroutine
+- Go 没有暴露 goroutine id 给用户，所以不能在一个 goroutine 里面显式地操作另一个 goroutine，不过 runtime 包提供了一些函数访问和限制 goroutine 的相关信息
+
+**channel**  
+channel 被翻译成通道  
+goroutine 是 Go 语言里面的并发执行体，通道是 goroutine 之间通信和同步的重要组件。Go 的哲学：不要通过共享内存来通信，而是通过通信来共享内存。通道是 Go 通过通信来共享内存的载体
+
+通道是有类型的，可以理解成有类型的管道。声明一个通道变量没有意义，并没有被初始化，其值是 nil。Go 语言使用 make 函数创建通道
+``` demo-5.1
+// 创建无缓冲的通道，通道存放元素类型为 datatype
+make(chan datatype)
+
+// 创建有 10 个缓存的通道
+make(chan datatype, 10)
+```
+通道分为无缓冲通道和有缓冲通道，Go 提供内置函数 len 和 cap，无缓冲通道的 len 和 cap 都是 0，有缓冲通道的 len 代表没有被读取的元素数，cap 代表整个通道的容量。无缓冲通道既可以用于通信也可以用于两个 goroutine 同步，有缓冲的通道主要用于通信
+
+操作不同状态的 chan 会引发三种行为
+- panic
+  - 向已经关闭的通道写数据会导致 panic。最好由写入者关闭通道，能最大程度地避免向已经关闭的通道写数据而导致 panic
+  - 重复关闭通道会导致 panic
+- 阻塞
+  - 向未初始化的通道写数据或读数据都会导致当前 goroutine 的永久阻塞
+  - 向缓冲区已满的通道写入数据会导致 goroutine 阻塞
+  - 通道中没有数据，读取该通道会导致 goroutine 阻塞
+- 非阻塞
+  - 读取已经关闭的通道不会引发阻塞，而是立即返回通道元素类型的零值，可以使用 `data, ok := channel` 语法判断通道是否已经关闭
+  - 向有缓冲且没有满的通道读写都不会引发阻塞
+
+**WaitGourp**  
+WaitGourp 用来等待多个 goroutine 完成，main goroutine 调用 Add 设置需要等待 goroutine 的数目，每一个 goroutine 结束时调用 Done(),Wait() 被 main 用来等待所有的 goroutine 完成
+``` demo-5.2
+type WaitGourp struct {
+    // contains filtered or unexported fields
+}
+
+// 添加等待信号
+func (wg *WaitGourp)Add(delta int)
+
+// 释放信号
+func (wg *WaitGourp)Done()
+
+// 等待
+func (Wg *WaitGourp)Wait()
+```
+
+**select**  
+select 是类 UNIX 系统提供的一个多路复用系统 API，Go 语言借用多路复用的概念，提供了 select 关键字用于多路监听多个通道。当监听的通道没有状态是可读或可写，select 是阻塞的；只要监听的通道中有一个状态是可读或可写的，则 select 就不会阻塞，而是进入处理就绪通道的分支流程。如果监听的通道有多个可读或可写的状态，则 select 随机选取一个处理
+- 扇入，指将多路通道聚合到一条通道中处理，最简单的是使用 select 聚合多条通道服务
+- 扇出，指将一条通道发散到多条通道中处理，Go 语言中使用 go 关键字启动多个 goroutine
+
+**通知退出机制**
+读取已经关闭的通道不会引起阻塞，也不会导致 panic，而是立即返回该通道存储类型的零值。关闭 select 监听的某个通道能使 select 立即感知这种通知，然后进行处理。这就是通知退出机制
+
+### 并发范式
+**生成器**  
+- 最简单的带缓存的生成器
+``` demo-5.3
+package main
+
+import (
+    "fmt"
+    "math/rand"
+)
+
+func GenerateInt() chan int {
+    ch := make(chan int, 10)
+    // 启动一个 goroutine 用于生成随机数，函数返回一个通道用于获取随机数
+    go func() {
+        for {
+            ch <-rand.Int()
+        }
+    }()
+    return ch
+}
+
+func main() {
+    ch := GenerateInt()
+    fmt.Println(<-ch)
+    fmt.Println(<-ch)
+}
+```
+- 多个 goroutine 增强型生成器
+``` demo-5.4
+package main
+
+import (
+    "fmt"
+    "math/rand"
+)
+
+func GenerateIntA() chan int {
+    ch := make(chan int, 10)
+    go func() {
+        for {
+            ch <-rand.Int()
+        }
+    }()
+    return ch
+}
+
+func GenerateIntB() chan int {
+    ch := make(chan int, 10)
+    go func() {
+        for {
+            ch <-rand.Int()
+        }
+    }()
+    return ch
+}
+
+func GenerateInt() chan int {
+    ch := make(chan int, 10)
+    go func() {
+        for {
+            select {
+                case ch <- <-GenerateIntA():
+                case ch <- <-GenerateIntB():
+            }
+        }
+    }()
+    return ch
+}
+
+func main() {
+    ch := GenerateInt()
+
+    for i := 0; i < 100; i++ {
+        fmt.Println(<-ch)
+    }
+}
+```
+- 借助 Go 通道的退出通知机制，实现生成器自动退出
+``` demo-5.5
+package main
+
+import (
+    "fmt"
+    "math/rand"
+)
+
+func GenerateInt(done chan struct{}) chan int {
+    ch := make(chan int)
+    go func() {
+        for {
+            // 通过 select 监听一个信号 chan 来确定是否停止生成
+            select {
+                case ch <-rand.Ine():
+                case <-done:
+                    break
+            }
+        }
+        close(ch)
+    }()
+    return ch
+}
+
+func main() {
+    done := make(chan int)
+    ch := GenerateInt(done)
+
+    fmt.Println(<-ch)
+    fmt.Println(<-ch)
+
+    // 不再需要生成器，通过 close chan 发送一个通知给生成器
+    close(done)
+    for v := range ch {
+        fmt.Println(v)
+    }
+}
+```
+- 融合并发、缓冲、退出机制的生成器
+``` demo-5.6
+package main
+
+import (
+    "fmt"
+    "math/rand"
+)
+
+// done 接收通知退出信号
+func GenerateIntA(done chan struct{}) chan int {
+    ch := make(chan int, 10)
+    go func() {
+        for {
+            select {
+                case ch <-rand.Int():
+                case <-done:
+                    break
+            }
+        }
+        close(ch)
+    }()
+    return ch
+}
+
+func GenerateIntB(done chan struct{}) chan int {
+    ch := make(chan int, 10)
+    go func() {
+        for {
+            select {
+                case ch <-rand.Int():
+                case <-done:
+                    break
+            }
+        }
+        close(ch)
+    }()
+    return ch
+}
+
+// 通过 select 执行扇入操作
+func GenerateInt(done chan struct{}) chan int {
+    ch := make(chan int)
+    send := make(chan struct{})
+    go func() {
+        for {
+            select {
+                case ch <- <-GenerateIntA(send):
+                case ch <- <-GenerateIntB(send):
+                case <-done:
+                    send <- struct{}{}
+                    send <- struct{}{}
+                    break
+            }
+        }
+        close(ch)
+    }()
+    return ch
+}
+
+func main() {
+    done := make(chan struct{})
+    ch :=  GenerateInt(done)
+
+    for i := 0; i < 100; i++ {
+        fmt.Println(<-ch)
+    }
+
+    // 通知生产者停止生产
+    done <-struct{}{}
+    fmt.Prinln("stop generate")
+}
+```
+
+**管道**  
+通道可以分成两个方向，一个是读，另一个是写，假如一个函数的 输入参数和输出参数都是相同的 chan 类型，则该函数可以调用自己，最终形成一个调用链。多个具有相同参数类型的函数也能组成一个调用链，类似 UNIX 系统的管道，一个有类型的管道

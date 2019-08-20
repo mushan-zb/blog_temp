@@ -19,6 +19,8 @@
 - [接口内部实现](Go语言核心编程.md#interface-implementation)
 
 ### [第五章 - 并发](Go语言核心编程.md#chapter5)
+- [并发基础](Go语言核心编程.md#concurrent-basic)
+- 
 
 ### 第六章 - 反射
 
