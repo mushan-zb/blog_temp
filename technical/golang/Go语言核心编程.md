@@ -952,3 +952,175 @@ func main() {
 
 **管道**  
 通道可以分成两个方向，一个是读，另一个是写，假如一个函数的 输入参数和输出参数都是相同的 chan 类型，则该函数可以调用自己，最终形成一个调用链。多个具有相同参数类型的函数也能组成一个调用链，类似 UNIX 系统的管道，一个有类型的管道
+``` demo-5.7
+package main
+
+import "fmt"
+
+// chain 函数的输入输入参数类型相同，功能是将 chan 内的数据加一
+func chain(in chan int) chan int {
+    out := make(chan int)
+    go func() {
+        for v := range in {
+            out <- v + 1
+        }
+        close(out)
+    }()
+    return out
+}
+
+func main() {
+    in := make(chan int)
+    go func() {
+        for i := 0; i < 10; i++ {
+            in <- i
+        }
+        close(in)
+    }()
+    // 连续调用 3 次 chan，相当于把 in 中的每个元素都加 3
+    out := chain(chain(chain(in)))
+    for v := range out {
+        fmt.Println(v)
+    }
+}
+```
+
+**每个请求一个 goroutine**  
+来一个请求或任务就启动一个 goroutine 去处理，典型的就是 Go 中的 HTTP server 服务  
+以计算 100 个自然数的和举例，将计算任务拆分为多个 task，每个 task 启动一个 goroutine 进行处理
+``` demo-5.8
+package main
+
+import (
+    "fmt"
+    "sync"
+)
+
+// 工作任务
+type task struct {
+    begin int
+    end int
+    result chan<- int
+}
+
+// 任务执行：计算 begin 到 end 的和，将执行结果写入 result
+func (t *task) do() {
+    sum := 0
+    for i := t.begin; i <= t.end; i++ {
+        sum += i
+    }
+    t.result <- sum
+}
+
+func main() {
+    // 创建任务通道
+    taskchan := make(chan task, 10)
+    // 创建结果通道
+    resultchan := make(chan int, 10)
+    // wg 用于同步等待任务的执行
+    wg := &sync.WaitGourp{}
+    // 初始化 task 的 goroutine，计算 100 个自然数之和
+    go InitTask(taskchan, resultchan, 100)
+    // 每个 task 启动一个 goroutine 进行处理
+    go DistributeTask(taskchan, wg, resultchan)
+    // 通过结果通道获取结果并汇总
+    sum := ProcessResult(resultchan)
+    fmt.Println("sum=", sum)
+}
+
+// 构建 task 并写入 task 通道
+func InitTask(taskchan chan<- task, resultchan chan int, p int) {
+    num := p / 10
+    mod := p % 10
+    for i := 0; i < num; i++ {
+        b := 10 * i + 1
+        e := 10 * (i + 1)
+        t := task {
+            begin: b,
+            end: e,
+            result: resultchan,
+        }
+        taskchan <- t
+    }
+    if mod != 0 {
+        t := task {
+            begin: num * 10 + 1,
+            end: p,
+            result: resultchan,
+        }
+        taskchan <- t
+    }
+    close(taskchan)
+}
+
+// 读取 task，每个 task 启动一个 worker goroutine 进行处理并等待每个 task 完成，关闭结果通道
+func DistributeTask(taskchan <-chan task, wg *sync.WaitGroup, result chan int) {
+    for v := range taskchan {
+        wg.Add(1)
+        go ProcessTask(v, wg)
+    }
+    wg.Wait()
+    close(result)
+}
+
+// goroutine 处理具体工作，并将结果发送到结果通道
+func ProcessTask(t task, wg *sync.WaitGroup) {
+    t.do()
+    wg.Done()
+}
+
+// 读取结果通道，汇总结果
+func processResult(resultchan chan int) int {
+    sum := 0
+    for r := range resultchan {
+        sum += r
+    }
+    return sum
+}
+```
+> 程序逻辑分析  
+> 1. InitTask 函数构建 task 并发送到 task 通道中
+> 2. 分发任务函数 DistributeTask 为每个 task 启动一个 goroutine 处理任务，等待其处理完成，然后关闭结果通道
+> 3. ProcessResult 函数读取并统计所有的结果
+> 
+> 函数在不同的 goroutine 中运行，他们通过通道和 sync.WaitGroup 进行通信和同步
+
+**固定 worker 工作池**  
+服务器编程中使用最多的是通过线程池来提升服务的并发处理能力。在 Go 语言编程中一样可以轻松构建固定数量的 goroutine 作为工作线程池  
+以计算多个整数的和为例  
+除 main goroutine 外，还有以下几类 goroutine
+1. 初始化任务的 goroutine
+2. 分发任务的 goroutine
+3. 等待所有 worker 结束通知，然后关闭结果通道的 goroutine
+
+采用的通道
+1. 传递 task 任务的通道
+2. 传递 task 结果的通道
+3. 接收 worker 处理完任务后所发通知的通道
+``` demo-5.9
+package main
+
+import "fmt"
+
+// 工作池的 goroutine 数目
+const NUMBER = 10
+
+// 工作任务
+type task struct {
+    begin  int
+    end    int
+    result chan<- int
+}
+
+// 任务处理： 计算 begin 到 end 的和，将结果写入 chan result
+func (t *task)Do() {
+    sum := 0
+    for i := t.begin; i <= t.end; i++ {
+        sum += i
+    }
+    t.result <- sum
+}
+
+func main() {
+
+}
