@@ -9,14 +9,18 @@
 
 ### [技术总结](technical)
 - [计算机基础知识](technical/计算机基础知识)
-- [Git](technical/git)
-- [Python](technical/python)
-- [Golang](technical/golang)
-- [Nginx](technical/nginx)
-- [Redis](technical/redis)
-- [MySQL](technical/mysql)
 - [ElasticSearch](technical/elasticsearch)
+- [Git](technical/git)
+- [Golang](technical/golang)
+- [Linux](technical/Linux)
+- [MySQL](technical/mysql)
+- [Nginx](technical/nginx)
+- [Python](technical/python)
+- [Redis](technical/redis)
 - [其他](technical/其他)
 
 ### [其他爱好](hobby)
 - [English](hobby/English)
+
+
+
