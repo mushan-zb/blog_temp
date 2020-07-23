@@ -108,7 +108,7 @@ func main() {
     var ma Map = mp
 
     // var im iMap = ma // 不能直接赋值
-    //强制类型转换
+    // 强制类型转换
     var im iMap = iMap(ma)
 
     ma.Print()
@@ -134,7 +134,7 @@ fmt.Printf("%T\n", c) // []int32 rune 是 int32 的别名
 **自定义类型**
 
 使用 type 关键字可以进行自定义类型，自定义的类型是命名类型。格式：type newtype oldtype  
-**注：** 使用 type 定义的新类型不会继承旧类型的方法
+> **注：** 使用 type 定义的新类型不会继承旧类型的方法
 
 常用的自定义类型为自定义 struct 类型
 ``` demo-3.5
@@ -1122,5 +1122,187 @@ func (t *task)Do() {
 }
 
 func main() {
+    workers := NUMBER
+    // 工作通道
+    taskChan := make(chan task, 10)
+    // 结果通道
+    resultChan := make(chan int, 10)
+    // worker 信号通道
+    done := make(chan struct{}, 10)
+    
+    // 初始化 task 的 goroutine，计算 100 个自然数和
+    go InitTask(taskChan, resultChan, 100)
 
+    // 分发任务到 NUMBER 个 goroutine 池
+    DistributeTask(taskChan, workers, done)
+
+    // 获取各个 goroutine 处理完任务的通知并关闭结果通道
+    go CloseResult(done, resultChan, workers)
+
+    // 通过结果通道获取结果并汇总
+    sum := ProcessResult(resultChan)
+
+    fmt.Println("sum=", sum)
 }
+
+// 初始化待处理的 task chan
+func InitTask(taskChan chan<- task, resultChann chan int, p int) {
+    num := p / 10
+    mod := p % 10
+    for i := 0; i < num; i++ {
+        tsk := task{
+            begin:  10 * i + 1,
+            end:    10 * (i + 1),
+            result: resultChan,
+        }
+        taskChan <- tsk
+    }
+    if mod != 0 {
+        tsk := task{
+            begin:  10 * num + 1,
+            end:    p,
+            result: resultChan,
+        }
+        taskChan <- tsk
+    }
+    close(taskChan)
+}
+
+// 读取 task chan 并分发到 worker goroutine 处理，总的数量是 workers
+func DistributeTask(taskChan <-chan task, workers int, done chan struct{}) {
+    for i := 0; i < workers; i++ {
+        go ProcessTask(taskChan, done)
+    }
+}
+
+// 工作 goroutine 处理具体工作并将处理结果发送到结果 chan
+func ProcessTask(taskChan <-chan task, done chan struct{}) {
+    for task := range taskChan {
+        t.do()
+    }
+    done <- struct{}{}
+}
+
+// 通过 done channel 同步等待所有工作 goroutine 的结束，然后关闭结果 chan
+func CloseResult(done chan struct{}, resultChan chan int, workers int) {
+    for i := 0; i < workers; i++ {
+        <-done
+    }
+    close(done)
+    close(resultChan)
+}
+
+// 读取结果通道，汇总结果
+func ProcessResult(resultChan chan int) int {
+    sum := 0
+    for result := range resultChan {
+        sum += result
+    }
+    return sum
+}
+```
+> 程序逻辑分析：
+> 1. 构建 task 并发送到 task 通道中
+> 2. 分别启动 n 个工作线程，不停地从 task 通道获取任务，然后将结果写入结果通道。如果任务通道被关闭，则负责向收敛结果的 goroutine 发送通知，告诉其当前 worker 已经完成工作
+> 3. 收敛结果的 goroutine 接收到所有 task 已经处理完毕的信号后，主动关闭结果通道
+> 4. main 中的函数 ProcessResult 读取并统计所有结果
+
+**future 模式**  
+在一个流程中需要调用多个子调用，而这些子调用相互之间没有依赖，如果串行地调用，则耗时会很长。此时可以使用 Go 并发编程中的 future 模式  
+future 模式的基本工作原理
+1. 使用 chan 作为函数参数
+2. 启动 goroutine 调用函数
+3. 通过 chan 传入参数
+4. 同时并行无依赖的子调用
+5. 通过 chan 异步获取结果
+``` demo-5.10
+package main
+
+import (
+    "fmt"
+    "time"
+)
+
+// 异步查询数据库的例子
+// sql 查询参数，result 返回结果
+type Query struct {
+    // 简单的抽象，实际更复杂
+    sql chan string
+    result chan string
+}
+
+func main() {
+    // 初始化 Query
+    query := Query{
+        sql:    make(chan string, 1),
+        result: make(chan string, 1),
+    }
+
+    // 执行 Query，无须准备参数
+    go executeQuery(query)
+
+    // 传递参数
+    query.sql <- "select * from table"
+
+    // 做其他的事情，假设花费 1 秒钟时间
+    time.Sleep(1 * time.Second)
+
+    // 获取数据库取回的结果
+    fmt.Println(<-query.result)
+}
+
+func executeQuery(query Query) {
+    for sql := range query.sql {
+        // 访问数据库的操作
+        query.result <- "result from " + sql
+    }
+}
+```
+
+### context 标准库
+Go 中的 goroutine 之间没有父子关系，也就没有子进程退出后的通知机制，多个 goroutine 是平行的被调度，多个 goroutine 如何协作工作涉及通信、同步、通知和退出四个方面
+- 通信：chan 通道是 goroutine 之间通信的基础，通信主要指程序的数据通道
+- 同步：不带缓冲的 chan 提供了一个天然的同步等待机制，sync.WaitGroup 也为多个 goroutine 协同工作提供了一种同步等待机制
+- 通知：通知和通信的数据不同，通知通常不是业务数据，而是管理、控制流数据。可以在输入端绑定两个 chan，一个用于业务流数据，另一个用于异常通知数据，然后通过 select 收敛进行处理。但不是一个通用的解决方案
+- 退出：goroutine 之间没有父子关系，可以通过增加一个单独的通道，借助通道和 select 的广播机制（close channel to broadcast）实现退出
+
+**context 的设计目的**  
+context 库的设计目的就是跟踪 goroutine 调用树，并在这些 goroutine 调用树中传递通知和元数据
+- 退出通知机制：通知可以传递给整个 goroutine 调用树上的每一个 goroutine
+- 传递数据：数据可以传递给整个 goroutine 调用树上的每一个 goroutine
+
+**基本数据结构**  
+context 包的整体工作机制：第一个创建 Context 的 goroutine 被称为 root 节点。root 节点负责创建一个实现 Context 接口的具体对象，并将该对象作为参数传递到其新拉起的 goroutine，下游的 goroutine 可以继续封装该对象，在传递到更下游的 goroutine。Context 对象在传递的过程中最终形成一个树状的数据结构，通过位于 root 节点（树的根节点）的 Context 对象就能遍历整个 Context 对象树。通知和消息可以通过 root 节点传递出去，实现上游 goroutine 对下游 goroutine 的消息传递
+
+- Context 接口
+> Context 是一个基本接口，所有的 Context 对象都要实现该接口，context 的使用者在调用接口中都是用 Context作为参数类型
+``` demo-5.11
+type Context interface {
+    // 如果 Context 实现了超时控制，则该方法返回 ok true，deadline 为超时时间。否则 ok 为 false
+    Deadline() (deadline time.Time, ok bool)
+
+    // 后端被调的 goroutine 应该监听该方法返回的 chan，以便及时释放资源
+    Done() <-chan struct{}
+
+    // Done 返回的 chan 收到通知的时候，才可以访问 Err() 获知因为什么原因被取消
+    Err() error
+
+    // 可以访问上游 goroutine 传递给下游 goroutine 的值
+    Value(key interface{}) interface{}
+}
+```
+- canceler 接口
+> canceler 接口是一个扩展接口，规定了取消通知的 Context 具体类型需要实现的接口。context 包中的具体类型 *cancelCtx 和 *timerCtx 都实现了该接口
+``` demo-5.12
+// context 对象如果实现了 canceler 接口，则可以被取消
+type canceler interface {
+    // 创建 cancel 接口实例的 goroutine 调用 cancel 方法通知后续创建的 goroutine 退出
+    cancel(removeFromParent bool, err error)
+
+    // Done 方法返回的 chan 需要后端 goroutine 来监听，并及时退出
+    Done() <-chan struct{}
+}
+```
+- empty Context 结构
+> emptyCtx 实现了 Context 接口，但不具备任何功能，因为其所有的方法都是空实现。其存在的目的是作为 Context 对象树的根（root 节点）
+
